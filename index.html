@@ -1,0 +1,2069 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#1a1a2e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" type="image/svg+xml" href="icon.svg" />
+  <link rel="apple-touch-icon" href="icon.svg" />
+  <title>テトリス</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-family: system-ui, "Segoe UI", sans-serif;
+      background: linear-gradient(160deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      color: #e8e8e8;
+    }
+    h1 {
+      margin: 0 0 0.5rem;
+      font-weight: 600;
+      font-size: 1.75rem;
+      letter-spacing: 0.08em;
+    }
+    .panel {
+      display: flex;
+      gap: 1.5rem;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+    #game {
+      display: block;
+      background: #0d1117;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 0 0 2px #30363d;
+    }
+    .side {
+      min-width: 160px;
+      padding: 1rem;
+      background: rgba(13, 17, 23, 0.85);
+      border-radius: 8px;
+      border: 1px solid #30363d;
+    }
+    .side p { margin: 0.4rem 0; font-size: 0.9rem; }
+    .item-line {
+      margin: 0.35rem 0;
+      font-size: 0.9rem;
+      color: #e6edf3;
+    }
+    .item-line strong { color: #3fb950; }
+    .item-line.tnt strong { color: #f85149; }
+    .next-label {
+      margin: 0.75rem 0 0.4rem;
+      font-size: 0.8rem;
+      color: #8b949e;
+    }
+    #nextPreview {
+      display: block;
+      width: 128px;
+      height: 128px;
+      background: #0d1117;
+      border-radius: 8px;
+      box-shadow: inset 0 0 0 2px #30363d;
+    }
+    .side strong { color: #58a6ff; }
+    .btn-pause {
+      display: block;
+      width: 100%;
+      margin: 0.5rem 0 0.75rem;
+      padding: 0.65rem 0.85rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: inherit;
+      cursor: pointer;
+      color: #e6edf3;
+      background: linear-gradient(180deg, #30363d 0%, #21262d 100%);
+      border: 1px solid #484f58;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+      transition: background 0.15s, border-color 0.15s, box-shadow 0.15s;
+    }
+    .btn-pause:hover {
+      background: linear-gradient(180deg, #3d444d 0%, #2a3038 100%);
+      border-color: #58a6ff;
+      box-shadow: 0 2px 14px rgba(88, 166, 255, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+    .btn-pause:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+    .controls {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      line-height: 1.6;
+      color: #8b949e;
+    }
+    .over {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.75);
+      border-radius: 8px;
+      font-size: 1.25rem;
+      font-weight: 600;
+    }
+    /* .over の display:flex が [hidden] より後勝ちするため、非表示を保証する */
+    [hidden] {
+      display: none !important;
+    }
+    .wrap {
+      position: relative;
+    }
+    footer {
+      margin-top: 1rem;
+      font-size: 0.75rem;
+      color: #6e7681;
+      text-align: center;
+      max-width: 28rem;
+      padding: 0 0.5rem;
+    }
+    .desktop-only { display: block; }
+    .mobile-only { display: none; }
+    .touch-controls {
+      display: none;
+      width: 100%;
+      max-width: min(100vw - 16px, 360px);
+      margin: 0 auto;
+      flex-direction: column;
+      gap: 0.45rem;
+      padding: 0.15rem 0 0.35rem;
+    }
+    .touch-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.45rem;
+    }
+    .touch-row.touch-row-2 {
+      grid-template-columns: 1fr 1fr;
+    }
+    .touch-btn {
+      touch-action: manipulation;
+      min-height: 46px;
+      font-size: 1.05rem;
+      font-weight: 600;
+      font-family: inherit;
+      border-radius: 10px;
+      border: 1px solid #484f58;
+      background: linear-gradient(180deg, #30363d 0%, #21262d 100%);
+      color: #e6edf3;
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    }
+    .touch-btn:active {
+      transform: translateY(1px);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+    .touch-btn.touch-i {
+      min-height: 52px;
+      font-size: 1.15rem;
+      font-weight: 700;
+      border-width: 2px;
+      border-color: #3fb950;
+      color: #3fb950;
+      background: linear-gradient(180deg, #1c2d22 0%, #141f18 100%);
+    }
+    .touch-btn.touch-tnt {
+      min-height: 52px;
+      font-size: 1.05rem;
+      font-weight: 700;
+      border-width: 2px;
+      border-color: #f85149;
+      color: #f85149;
+      background: linear-gradient(180deg, #2d1a1a 0%, #1a1010 100%);
+    }
+    @media (max-width: 768px) {
+      body {
+        justify-content: flex-start;
+        padding: 0.75rem 0 1rem;
+      }
+      h1 {
+        font-size: 1.35rem;
+      }
+      .panel {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+        max-width: 100%;
+        gap: 0.5rem;
+        padding: 0 0.5rem;
+      }
+      .wrap {
+        align-self: center;
+      }
+      #game {
+        display: block;
+        width: min(100vw - 16px, 320px);
+        height: auto;
+        max-width: 100%;
+      }
+      .side {
+        width: 100%;
+        max-width: min(100vw - 16px, 380px);
+        margin: 0 auto;
+      }
+      .touch-controls {
+        display: flex;
+      }
+      .desktop-only { display: none; }
+      .mobile-only { display: block; }
+    }
+    @media (min-width: 769px) {
+      .touch-controls {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>テトリス</h1>
+  <div class="panel">
+    <div class="wrap">
+      <canvas id="game" width="320" height="640" aria-label="テトリス"></canvas>
+      <div id="overlay" class="over" hidden>
+        <span class="desktop-only">ゲームオーバー — スペースで再開</span>
+        <span class="mobile-only">ゲームオーバー — タップで再開</span>
+      </div>
+    </div>
+    <div
+      class="touch-controls"
+      id="touchControls"
+      role="toolbar"
+      aria-label="モバイル用操作"
+    >
+      <div class="touch-row">
+        <button type="button" class="touch-btn" id="touchLeft" aria-label="左へ移動">←</button>
+        <button type="button" class="touch-btn" id="touchRotate" aria-label="回転">↻</button>
+        <button type="button" class="touch-btn" id="touchRight" aria-label="右へ移動">→</button>
+      </div>
+      <div class="touch-row">
+        <button type="button" class="touch-btn touch-i" id="touchISummon" aria-label="Iミノ召喚">
+          I 召喚
+        </button>
+        <button type="button" class="touch-btn" id="touchDown" aria-label="ソフトドロップ">↓</button>
+        <button type="button" class="touch-btn touch-tnt" id="touchTNT" aria-label="TNT">
+          TNT
+        </button>
+      </div>
+      <div class="touch-row touch-row-2">
+        <button type="button" class="touch-btn" id="touchHardDrop" aria-label="ハードドロップ">
+          瞬間落下
+        </button>
+        <button type="button" class="touch-btn" id="touchPause" aria-label="一時停止">⏸ 停止</button>
+      </div>
+    </div>
+    <div class="side">
+      <p>スコア: <strong id="score">0</strong></p>
+      <p>ライン: <strong id="lines">0</strong></p>
+      <p>レベル: <strong id="level">1</strong></p>
+      <p class="item-line">Iミノ召喚: <strong id="iSummonCount">残り5回</strong></p>
+      <p class="item-line tnt">TNT: <strong id="tntCount">残り3回</strong></p>
+      <button type="button" id="pauseBtn" class="btn-pause">一時停止</button>
+      <p class="next-label">次のブロック</p>
+      <canvas id="nextPreview" width="128" height="128" aria-hidden="true"></canvas>
+      <div class="controls">
+        <span class="desktop-only">
+          ← → 移動<br />
+          ↑ 回転<br />
+          ↓ ソフトドロップ<br />
+          スペース ハードドロップ<br />
+          X Iミノ召喚<br />
+          T TNT爆弾<br />
+          P 一時停止 / 再開
+        </span>
+        <span class="mobile-only">
+          画面下のボタンで操作（I・TNTはタップ）<br />
+          P または「停止」で一時停止
+        </span>
+      </div>
+    </div>
+  </div>
+  <footer>
+    <span class="desktop-only">ブラウザで動作します（オフライン可）</span>
+    <span class="mobile-only">ホーム画面に追加するとアプリのように起動できます（PWA）</span>
+  </footer>
+
+  <script>
+(function () {
+  const COLS = 10;
+  const ROWS = 20;
+  const CELL = 32;
+  const canvas = document.getElementById("game");
+  const ctx = canvas.getContext("2d");
+  const nextCanvas = document.getElementById("nextPreview");
+  const nextCtx = nextCanvas.getContext("2d");
+  const scoreEl = document.getElementById("score");
+  const linesEl = document.getElementById("lines");
+  const levelEl = document.getElementById("level");
+  const iSummonEl = document.getElementById("iSummonCount");
+  const tntEl = document.getElementById("tntCount");
+  const overlay = document.getElementById("overlay");
+  const pauseBtn = document.getElementById("pauseBtn");
+  const touchLeft = document.getElementById("touchLeft");
+  const touchRight = document.getElementById("touchRight");
+  const touchRotate = document.getElementById("touchRotate");
+  const touchDown = document.getElementById("touchDown");
+  const touchHardDrop = document.getElementById("touchHardDrop");
+  const touchISummon = document.getElementById("touchISummon");
+  const touchTNT = document.getElementById("touchTNT");
+  const touchPause = document.getElementById("touchPause");
+
+  const TYPE_TNT = 8;
+  const I_SUMMON_MAX = 5;
+  const TNT_MAX = 3;
+  let iSummonUsesLeft = I_SUMMON_MAX;
+  let tntUsesLeft = TNT_MAX;
+
+  const COLORS = [
+    null,
+    "#00f0f0", // I
+    "#f0f000", // O
+    "#a000f0", // T
+    "#00f000", // S
+    "#f00000", // Z
+    "#0000f0", // J
+    "#f0a000", // L
+    "#c62828", // TNT（盤面に残す場合用・通常は即爆発）
+  ];
+
+  const TNT_SHAPE = [
+    [1, 1],
+    [1, 1],
+  ];
+
+  const SHAPES = [
+    [
+      [0, 0, 0, 0],
+      [1, 1, 1, 1],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0],
+    ],
+    [
+      [1, 1],
+      [1, 1],
+    ],
+    [
+      [0, 1, 0],
+      [1, 1, 1],
+      [0, 0, 0],
+    ],
+    [
+      [0, 1, 1],
+      [1, 1, 0],
+      [0, 0, 0],
+    ],
+    [
+      [1, 1, 0],
+      [0, 1, 1],
+      [0, 0, 0],
+    ],
+    [
+      [1, 0, 0],
+      [1, 1, 1],
+      [0, 0, 0],
+    ],
+    [
+      [0, 0, 1],
+      [1, 1, 1],
+      [0, 0, 0],
+    ],
+  ];
+
+  function rotateCW(matrix) {
+    const h = matrix.length;
+    const w = matrix[0].length;
+    const out = [];
+    for (let x = 0; x < w; x++) {
+      out[x] = [];
+      for (let y = h - 1; y >= 0; y--) out[x][h - 1 - y] = matrix[y][x];
+    }
+    return out;
+  }
+
+  function trimShape(matrix) {
+    let minR = matrix.length, maxR = -1, minC = matrix[0].length, maxC = -1;
+    for (let r = 0; r < matrix.length; r++) {
+      for (let c = 0; c < matrix[r].length; c++) {
+        if (matrix[r][c]) {
+          minR = Math.min(minR, r);
+          maxR = Math.max(maxR, r);
+          minC = Math.min(minC, c);
+          maxC = Math.max(maxC, c);
+        }
+      }
+    }
+    if (maxR < 0) return [[0]];
+    const h = maxR - minR + 1;
+    const w = maxC - minC + 1;
+    const trimmed = [];
+    for (let r = 0; r < h; r++) {
+      trimmed[r] = [];
+      for (let c = 0; c < w; c++) trimmed[r][c] = matrix[minR + r][minC + c];
+    }
+    return trimmed;
+  }
+
+  let board = [];
+  let piece = null;
+  let nextType = 1;
+  let score = 0;
+  let linesTotal = 0;
+  let level = 1;
+  let dropMs = 800;
+  let lastDrop = 0;
+  let gameOver = false;
+  let paused = false;
+  let animId = null;
+  let keys = {};
+
+  /** ボス戦（60秒ごと・ノルマ1〜5ライン・20ターン制限） */
+  let bossActive = false;
+  let bossNorma = 0;
+  let bossLinesProgress = 0;
+  let bossSpawnAccumMs = 0;
+  let lastLoopTime = 0;
+  const BOSS_SPAWN_INTERVAL_MS = 60000;
+  const BOSS_DEFEAT_MS = 2200;
+  const BOSS_MAX_TURNS = 20;
+  let bossTurnsLeft = BOSS_MAX_TURNS;
+  /** @type {{ particles: object[], particlesT0: number } | null} */
+  let bossDefeatEffect = null;
+
+  /** Web Audio API — ユーザー操作（キー）後にのみ初期化・resume（自動再生制限対策） */
+  let audioCtx = null;
+
+  function stopBGM() {
+    /* BGM 未実装のため空。将来の BGM 用フック */
+  }
+
+  function playBossAlertSfx() {
+    runWhenAudioReady(function () {
+      const ac = audioCtx;
+      const t0 = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.value = 0.18;
+      master.connect(ac.destination);
+      for (var i = 0; i < 8; i++) {
+        var osc = ac.createOscillator();
+        var g = ac.createGain();
+        osc.type = "square";
+        osc.frequency.value = i % 2 === 0 ? 880 : 660;
+        var st = t0 + i * 0.12;
+        g.gain.setValueAtTime(0, st);
+        g.gain.linearRampToValueAtTime(0.14, st + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.001, st + 0.1);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(st);
+        osc.stop(st + 0.11);
+      }
+    });
+  }
+
+  function playBossFanfareSfx() {
+    runWhenAudioReady(function () {
+      const ac = audioCtx;
+      const t0 = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.value = 0.2;
+      master.connect(ac.destination);
+      var notes = [523.25, 659.25, 783.99, 1046.5, 1318.51];
+      for (var i = 0; i < notes.length; i++) {
+        var osc = ac.createOscillator();
+        var g = ac.createGain();
+        osc.type = "square";
+        osc.frequency.value = notes[i];
+        var st = t0 + i * 0.08;
+        g.gain.setValueAtTime(0, st);
+        g.gain.linearRampToValueAtTime(0.12, st + 0.015);
+        g.gain.exponentialRampToValueAtTime(0.001, st + 0.18);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(st);
+        osc.stop(st + 0.2);
+      }
+    });
+  }
+
+  function playBossMegaExplosionSfx() {
+    runWhenAudioReady(function () {
+      const ac = audioCtx;
+      const t0 = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.value = 0.35;
+      master.connect(ac.destination);
+      var boom = ac.createOscillator();
+      var gb = ac.createGain();
+      boom.type = "sawtooth";
+      boom.frequency.setValueAtTime(55, t0);
+      boom.frequency.exponentialRampToValueAtTime(12, t0 + 1.2);
+      gb.gain.setValueAtTime(0, t0);
+      gb.gain.linearRampToValueAtTime(0.55, t0 + 0.02);
+      gb.gain.exponentialRampToValueAtTime(0.001, t0 + 1.5);
+      boom.connect(gb);
+      gb.connect(master);
+      boom.start(t0);
+      boom.stop(t0 + 1.52);
+      var hit = ac.createOscillator();
+      var gh = ac.createGain();
+      hit.type = "square";
+      hit.frequency.setValueAtTime(120, t0);
+      hit.frequency.exponentialRampToValueAtTime(30, t0 + 0.4);
+      gh.gain.setValueAtTime(0, t0);
+      gh.gain.linearRampToValueAtTime(0.28, t0 + 0.01);
+      gh.gain.exponentialRampToValueAtTime(0.001, t0 + 0.55);
+      hit.connect(gh);
+      gh.connect(master);
+      hit.start(t0);
+      hit.stop(t0 + 0.56);
+    });
+  }
+
+  function trySpawnBoss() {
+    if (bossActive || bossDefeatEffect || gameOver) return;
+    bossActive = true;
+    bossNorma = 1 + Math.floor(Math.random() * 5);
+    bossLinesProgress = 0;
+    bossTurnsLeft = BOSS_MAX_TURNS;
+    stopBGM();
+    playBossAlertSfx();
+  }
+
+  function bossVictory() {
+    if (!bossActive) return;
+    bossActive = false;
+    score += 10000;
+    scoreEl.textContent = String(score);
+    playBossFanfareSfx();
+  }
+
+  function bossOnLandEndOfLock() {
+    if (!bossActive) return;
+    if (bossLinesProgress >= bossNorma) return;
+    bossTurnsLeft--;
+    if (bossTurnsLeft <= 0 && bossLinesProgress < bossNorma) {
+      triggerBossDefeat();
+    }
+  }
+
+  function BossDefeatParticle(px, py) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3 + Math.random() * 22;
+    this.x = px;
+    this.y = py;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.r = 200 + Math.random() * 55;
+    this.g = 20 + Math.random() * 80;
+    this.b = 0;
+    this.size = 4 + Math.random() * 14;
+    this.smoke = Math.random() < 0.35;
+    if (this.smoke) {
+      this.r = this.g = this.b = 40 + Math.random() * 80;
+    }
+  }
+
+  BossDefeatParticle.prototype.update = function () {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += 0.06;
+    this.vx *= 0.992;
+  };
+
+  function spawnBossDefeatParticles() {
+    const w = COLS * CELL;
+    const h = ROWS * CELL;
+    const list = [];
+    var i;
+    for (i = 0; i < 220; i++) {
+      list.push(
+        new BossDefeatParticle(
+          Math.random() * w,
+          Math.random() * h
+        )
+      );
+    }
+    for (i = 0; i < 120; i++) {
+      list.push(
+        new BossDefeatParticle(w / 2, h / 2)
+      );
+    }
+    return list;
+  }
+
+  function updateBossDefeatParticles(particles) {
+    for (var i = 0; i < particles.length; i++) particles[i].update();
+  }
+
+  function drawBossDefeatParticles(particles, elapsed) {
+    const fade = Math.max(0, 1 - elapsed / BOSS_DEFEAT_MS);
+    for (var i = 0; i < particles.length; i++) {
+      var p = particles[i];
+      ctx.save();
+      ctx.shadowBlur = 18 * fade;
+      ctx.shadowColor = "rgba(255,80,40," + fade + ")";
+      ctx.fillStyle =
+        "rgba(" + p.r + "," + p.g + "," + p.b + "," + fade * 0.95 + ")";
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size * (0.4 + 0.6 * fade), 0, Math.PI * 2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  function triggerBossDefeat() {
+    if (!bossActive) return;
+    bossActive = false;
+    bossDefeatEffect = {
+      particles: spawnBossDefeatParticles(),
+      particlesT0: performance.now(),
+    };
+    playBossMegaExplosionSfx();
+  }
+
+  function updateBossDefeatEffect(now) {
+    const e = bossDefeatEffect;
+    if (!e) return;
+    updateBossDefeatParticles(e.particles);
+    if (now - e.particlesT0 >= BOSS_DEFEAT_MS) {
+      bossDefeatEffect = null;
+      gameOver = true;
+      overlay.hidden = false;
+      cancelAnimationFrame(animId);
+    }
+  }
+
+  function drawBossArenaBackground() {
+    const w = COLS * CELL;
+    const h = ROWS * CELL;
+    const g = ctx.createLinearGradient(0, 0, 0, h);
+    g.addColorStop(0, "#4a0a0a");
+    g.addColorStop(0.5, "#2a0404");
+    g.addColorStop(1, "#0f0101");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.save();
+    ctx.globalAlpha = 0.4;
+    ctx.fillStyle = "#180202";
+    ctx.beginPath();
+    ctx.arc(w / 2, h * 0.4, 100, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = "rgba(120,0,0,0.5)";
+    ctx.beginPath();
+    ctx.arc(w / 2 - 42, h * 0.32, 22, 0, Math.PI * 2);
+    ctx.arc(w / 2 + 42, h * 0.32, 22, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "rgba(255,60,60,0.55)";
+    ctx.beginPath();
+    ctx.arc(w / 2 - 42, h * 0.31, 8, 0, Math.PI * 2);
+    ctx.arc(w / 2 + 42, h * 0.31, 8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalAlpha = 0.45;
+    ctx.fillStyle = "rgba(0,0,0,0.65)";
+    ctx.beginPath();
+    ctx.moveTo(w / 2 - 75, h * 0.42);
+    ctx.lineTo(w / 2 - 45, h * 0.72);
+    ctx.lineTo(w / 2 - 15, h * 0.48);
+    ctx.lineTo(w / 2, h * 0.78);
+    ctx.lineTo(w / 2 + 15, h * 0.48);
+    ctx.lineTo(w / 2 + 45, h * 0.72);
+    ctx.lineTo(w / 2 + 75, h * 0.42);
+    ctx.lineTo(w / 2 + 55, h * 0.38);
+    ctx.lineTo(w / 2 - 55, h * 0.38);
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = "rgba(180,40,40,0.25)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawBossHUD() {
+    if (!bossActive) return;
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.shadowColor = "rgba(0,0,0,0.9)";
+    ctx.shadowBlur = 10;
+    ctx.font = "bold 22px system-ui, 'Segoe UI', sans-serif";
+    ctx.fillStyle = "#ff3333";
+    ctx.fillText("BOSS 襲来！", COLS * CELL / 2, 30);
+    ctx.font = "bold 17px system-ui, 'Segoe UI', sans-serif";
+    ctx.fillStyle = "#ffcc33";
+    var remainLines = Math.max(0, bossNorma - bossLinesProgress);
+    ctx.fillText("ノルマ: 残り " + remainLines + " ライン", COLS * CELL / 2, 58);
+    ctx.fillText("制限: 残り " + bossTurnsLeft + " ターン", COLS * CELL / 2, 84);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  /** 矢印・スペース等の最初のキーで呼ぶ。ここでのみ AudioContext を生成する */
+  function unlockAudioFromUserGesture() {
+    try {
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      if (audioCtx.state === "suspended") {
+        void audioCtx.resume();
+      }
+    } catch (e) {
+      /* 無視 */
+    }
+  }
+
+  /** 未初期化または suspended のときは resume 完了後に再生（同一ユーザー操作チェーン内） */
+  function runWhenAudioReady(playFn) {
+    if (!audioCtx) return;
+    if (audioCtx.state === "running") {
+      playFn();
+    } else {
+      void audioCtx
+        .resume()
+        .then(function () {
+          if (audioCtx && audioCtx.state === "running") playFn();
+        })
+        .catch(function () {});
+    }
+  }
+
+  /** 回転：短い高い「ピッ」（スクエア波） */
+  function playRotateSfx() {
+    runWhenAudioReady(function () {
+    const ac = audioCtx;
+    const t0 = ac.currentTime;
+    const master = ac.createGain();
+    master.gain.value = 0.2;
+    master.connect(ac.destination);
+
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    const lp = ac.createBiquadFilter();
+    lp.type = "lowpass";
+    lp.frequency.value = 9000;
+
+    osc.type = "square";
+    osc.frequency.setValueAtTime(3400, t0);
+    osc.frequency.exponentialRampToValueAtTime(2600, t0 + 0.038);
+
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.14, t0 + 0.002);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.048);
+
+    osc.connect(lp);
+    lp.connect(g);
+    g.connect(master);
+    osc.start(t0);
+    osc.stop(t0 + 0.055);
+    });
+  }
+
+  /** 着地：低い「ドスッ」（三角波＋超低音のスクエアで胴体） */
+  function playLandSfx() {
+    runWhenAudioReady(function () {
+    const ac = audioCtx;
+    const t0 = ac.currentTime;
+    const master = ac.createGain();
+    master.gain.value = 0.26;
+    master.connect(ac.destination);
+
+    const osc = ac.createOscillator();
+    const g = ac.createGain();
+    osc.type = "triangle";
+    osc.frequency.setValueAtTime(155, t0);
+    osc.frequency.exponentialRampToValueAtTime(88, t0 + 0.09);
+    g.gain.setValueAtTime(0, t0);
+    g.gain.linearRampToValueAtTime(0.32, t0 + 0.006);
+    g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.11);
+    osc.connect(g);
+    g.connect(master);
+    osc.start(t0);
+    osc.stop(t0 + 0.12);
+
+    const osc2 = ac.createOscillator();
+    const g2 = ac.createGain();
+    osc2.type = "square";
+    osc2.frequency.setValueAtTime(62, t0);
+    osc2.frequency.exponentialRampToValueAtTime(48, t0 + 0.1);
+    g2.gain.setValueAtTime(0, t0);
+    g2.gain.linearRampToValueAtTime(0.12, t0 + 0.004);
+    g2.gain.exponentialRampToValueAtTime(0.001, t0 + 0.1);
+    osc2.connect(g2);
+    g2.connect(master);
+    osc2.start(t0);
+    osc2.stop(t0 + 0.11);
+    });
+  }
+
+  /** ライン消去：明るいアルペジオ「ピロリロン」（メジャー系） */
+  function playLineClearSfx() {
+    runWhenAudioReady(function () {
+    const ac = audioCtx;
+    const t0 = ac.currentTime;
+    const master = ac.createGain();
+    master.gain.value = 0.17;
+    master.connect(ac.destination);
+
+    const notes = [
+      { f: 523.25, off: 0 },
+      { f: 659.25, off: 0.052 },
+      { f: 783.99, off: 0.104 },
+      { f: 1046.5, off: 0.156 },
+      { f: 1318.51, off: 0.208 },
+    ];
+
+    for (let i = 0; i < notes.length; i++) {
+      const n = notes[i];
+      const start = t0 + n.off;
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      const lp = ac.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.value = 6500;
+
+      osc.type = "square";
+      osc.frequency.setValueAtTime(n.f, start);
+      g.gain.setValueAtTime(0, start);
+      g.gain.linearRampToValueAtTime(0.13, start + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.001, start + 0.075);
+
+      osc.connect(lp);
+      lp.connect(g);
+      g.connect(master);
+      osc.start(start);
+      osc.stop(start + 0.085);
+    }
+    });
+  }
+
+  /** Iミノ召喚：ギュイーン（上昇スイープ）＋シャキーン（和音の閃き） */
+  function playISummonSfx() {
+    runWhenAudioReady(function () {
+      const ac = audioCtx;
+      const t0 = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.value = 0.22;
+      master.connect(ac.destination);
+
+      const sweep = ac.createOscillator();
+      const gSweep = ac.createGain();
+      const lp = ac.createBiquadFilter();
+      lp.type = "lowpass";
+      lp.frequency.setValueAtTime(12000, t0);
+      sweep.type = "sawtooth";
+      sweep.frequency.setValueAtTime(180, t0);
+      sweep.frequency.exponentialRampToValueAtTime(3200, t0 + 0.14);
+      gSweep.gain.setValueAtTime(0, t0);
+      gSweep.gain.linearRampToValueAtTime(0.11, t0 + 0.02);
+      gSweep.gain.exponentialRampToValueAtTime(0.001, t0 + 0.16);
+      sweep.connect(lp);
+      lp.connect(gSweep);
+      gSweep.connect(master);
+      sweep.start(t0);
+      sweep.stop(t0 + 0.17);
+
+      const tClang = t0 + 0.1;
+      const freqs = [1046.5, 1318.51, 1567.98];
+      for (let i = 0; i < freqs.length; i++) {
+        const osc = ac.createOscillator();
+        const g = ac.createGain();
+        osc.type = "square";
+        osc.frequency.value = freqs[i];
+        g.gain.setValueAtTime(0, tClang);
+        g.gain.linearRampToValueAtTime(0.1 - i * 0.02, tClang + 0.004);
+        g.gain.exponentialRampToValueAtTime(0.001, tClang + 0.14);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(tClang);
+        osc.stop(tClang + 0.15);
+      }
+
+      const shine = ac.createOscillator();
+      const g2 = ac.createGain();
+      shine.type = "sine";
+      shine.frequency.setValueAtTime(8000, tClang);
+      shine.frequency.exponentialRampToValueAtTime(12000, tClang + 0.05);
+      g2.gain.setValueAtTime(0, tClang);
+      g2.gain.linearRampToValueAtTime(0.04, tClang + 0.002);
+      g2.gain.exponentialRampToValueAtTime(0.001, tClang + 0.08);
+      shine.connect(g2);
+      g2.connect(master);
+      shine.start(tClang);
+      shine.stop(tClang + 0.09);
+    });
+  }
+
+  function updateISummonUI() {
+    iSummonEl.textContent = "残り" + iSummonUsesLeft + "回";
+  }
+
+  function updateTNTUI() {
+    tntEl.textContent = "残り" + tntUsesLeft + "回";
+  }
+
+  /** TNT点火：ヒュッと上がるノイズ風（帯域を持った鋸波） */
+  function playTNTIgnitionSfx() {
+    runWhenAudioReady(function () {
+      const ac = audioCtx;
+      const t0 = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.value = 0.2;
+      master.connect(ac.destination);
+      const osc = ac.createOscillator();
+      const g = ac.createGain();
+      const bp = ac.createBiquadFilter();
+      bp.type = "bandpass";
+      bp.frequency.setValueAtTime(400, t0);
+      bp.frequency.exponentialRampToValueAtTime(2200, t0 + 0.12);
+      bp.Q.value = 2.5;
+      osc.type = "sawtooth";
+      osc.frequency.setValueAtTime(120, t0);
+      osc.frequency.exponentialRampToValueAtTime(900, t0 + 0.14);
+      g.gain.setValueAtTime(0, t0);
+      g.gain.linearRampToValueAtTime(0.14, t0 + 0.015);
+      g.gain.exponentialRampToValueAtTime(0.001, t0 + 0.18);
+      osc.connect(bp);
+      bp.connect(g);
+      g.connect(master);
+      osc.start(t0);
+      osc.stop(t0 + 0.2);
+    });
+  }
+
+  /** TNT爆発：低音ドカーン＋金属的な打撃 */
+  function playTNTExplosionSfx() {
+    runWhenAudioReady(function () {
+      const ac = audioCtx;
+      const t0 = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.value = 0.28;
+      master.connect(ac.destination);
+
+      const boom = ac.createOscillator();
+      const gb = ac.createGain();
+      boom.type = "sine";
+      boom.frequency.setValueAtTime(95, t0);
+      boom.frequency.exponentialRampToValueAtTime(38, t0 + 0.35);
+      gb.gain.setValueAtTime(0, t0);
+      gb.gain.linearRampToValueAtTime(0.45, t0 + 0.008);
+      gb.gain.exponentialRampToValueAtTime(0.001, t0 + 0.45);
+      boom.connect(gb);
+      gb.connect(master);
+      boom.start(t0);
+      boom.stop(t0 + 0.46);
+
+      const hit = ac.createOscillator();
+      const gh = ac.createGain();
+      hit.type = "square";
+      hit.frequency.setValueAtTime(180, t0);
+      hit.frequency.exponentialRampToValueAtTime(45, t0 + 0.2);
+      gh.gain.setValueAtTime(0, t0);
+      gh.gain.linearRampToValueAtTime(0.18, t0 + 0.003);
+      gh.gain.exponentialRampToValueAtTime(0.001, t0 + 0.25);
+      hit.connect(gh);
+      gh.connect(master);
+      hit.start(t0);
+      hit.stop(t0 + 0.26);
+
+      const crack = ac.createOscillator();
+      const gc = ac.createGain();
+      crack.type = "triangle";
+      crack.frequency.setValueAtTime(2400, t0);
+      crack.frequency.exponentialRampToValueAtTime(200, t0 + 0.08);
+      gc.gain.setValueAtTime(0, t0);
+      gc.gain.linearRampToValueAtTime(0.12, t0 + 0.002);
+      gc.gain.exponentialRampToValueAtTime(0.001, t0 + 0.12);
+      crack.connect(gc);
+      gc.connect(master);
+      crack.start(t0);
+      crack.stop(t0 + 0.13);
+    });
+  }
+
+  /** Xキー：落下中ピースをIミノに（空きがあれば）。残り回数を消費 */
+  function tryISummon() {
+    if (
+      !piece ||
+      gameOver ||
+      paused ||
+      lineClearEffect ||
+      tntExplosionEffect ||
+      bossDefeatEffect ||
+      iSummonUsesLeft <= 0
+    )
+      return;
+    const horizontal = SHAPES[0].map(function (row) {
+      return row.slice();
+    });
+    const vertical = trimShape(
+      rotateCW(SHAPES[0].map(function (row) {
+        return row.slice();
+      }))
+    );
+    const variants = [horizontal, vertical];
+    for (let v = 0; v < variants.length; v++) {
+      const shape = variants[v];
+      for (let oy = -3; oy <= 4; oy++) {
+        for (let ox = -5; ox <= 5; ox++) {
+          const px = piece.x + ox;
+          const py = piece.y + oy;
+          const test = { type: 1, shape: shape, x: px, y: py };
+          if (!collides(test, 0, 0)) {
+            piece.type = 1;
+            piece.shape = shape.map(function (row) {
+              return row.slice();
+            });
+            piece.x = px;
+            piece.y = py;
+            iSummonUsesLeft--;
+            updateISummonUI();
+            playISummonSfx();
+            return;
+          }
+        }
+      }
+    }
+  }
+
+  /** Tキー：落下中を2x2 TNTブロックに（空きがあれば）。残り回数を消費 */
+  function tryTNTSummon() {
+    if (
+      !piece ||
+      gameOver ||
+      paused ||
+      lineClearEffect ||
+      tntExplosionEffect ||
+      bossDefeatEffect ||
+      tntUsesLeft <= 0
+    )
+      return;
+    if (piece.type === TYPE_TNT) return;
+    const shape = TNT_SHAPE.map(function (row) {
+      return row.slice();
+    });
+    for (let oy = -3; oy <= 4; oy++) {
+      for (let ox = -5; ox <= 5; ox++) {
+        const px = piece.x + ox;
+        const py = piece.y + oy;
+        const test = { type: TYPE_TNT, shape: shape, x: px, y: py };
+        if (!collides(test, 0, 0)) {
+          piece.type = TYPE_TNT;
+          piece.shape = shape.map(function (row) {
+            return row.slice();
+          });
+          piece.x = px;
+          piece.y = py;
+          tntUsesLeft--;
+          updateTNTUI();
+          playTNTIgnitionSfx();
+          return;
+        }
+      }
+    }
+  }
+
+  function togglePause() {
+    if (gameOver || bossDefeatEffect) return;
+    paused = !paused;
+    pauseBtn.textContent = paused ? "再開" : "一時停止";
+    if (paused) {
+      keys["ArrowDown"] = false;
+      keys["ArrowLeft"] = false;
+      keys["ArrowRight"] = false;
+      keys["ArrowUp"] = false;
+    }
+  }
+
+  function drawPauseOverlay() {
+    if (!paused) return;
+    const w = COLS * CELL;
+    const h = ROWS * CELL;
+    ctx.save();
+    ctx.fillStyle = "rgba(0, 0, 0, 0.62)";
+    ctx.fillRect(0, 0, w, h);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.9)";
+    ctx.shadowBlur = 12;
+    ctx.fillStyle = "#f0f3f6";
+    ctx.font = "bold 46px system-ui, 'Segoe UI', sans-serif";
+    ctx.fillText("PAUSE", w / 2, h / 2 - 32);
+    ctx.font = "600 26px system-ui, 'Segoe UI', sans-serif";
+    ctx.fillStyle = "#8b949e";
+    ctx.fillText("一時停止中", w / 2, h / 2 + 24);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  const FLASH_MS = 160;
+  const PARTICLE_MS = 380;
+  const PARTICLES_PER_CELL = 18;
+  const SPARKS_PER_CELL = 10;
+
+  /** @type {{ rows: number[], phase: 'flash'|'explode', startedAt: number, particles: Particle[], particlesT0: number } | null} */
+  let lineClearEffect = null;
+
+  const TNT_PARTICLE_MS = 480;
+  /** @type {{ particles: object[], particlesT0: number } | null} */
+  let tntExplosionEffect = null;
+
+  function hexToRgb(hex) {
+    const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return m
+      ? { r: parseInt(m[1], 16), g: parseInt(m[2], 16), b: parseInt(m[3], 16) }
+      : { r: 255, g: 255, b: 255 };
+  }
+
+  function Particle(px, py, colorHex, opts) {
+    const opt = opts || {};
+    const isSpark = opt.spark === true;
+    const angle = Math.random() * Math.PI * 2;
+    const speed = isSpark
+      ? 6 + Math.random() * 14
+      : 3.5 + Math.random() * 9;
+    this.x = px;
+    this.y = py;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed;
+    this.kind = isSpark ? "spark" : "block";
+    if (isSpark) {
+      this.r = 255;
+      this.g = 240 + Math.floor(Math.random() * 15);
+      this.b = 180 + Math.floor(Math.random() * 75);
+      this.size = 1.4 + Math.random() * 3;
+    } else {
+      const rgb = hexToRgb(colorHex);
+      this.r = rgb.r;
+      this.g = rgb.g;
+      this.b = rgb.b;
+      this.size = 1.5 + Math.random() * 3.5;
+    }
+    this.rot = Math.random() * Math.PI * 2;
+    this.spin = (Math.random() - 0.5) * 0.35;
+  }
+
+  Particle.prototype.update = function () {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += this.kind === "spark" ? 0.18 : 0.14;
+    this.vx *= this.kind === "spark" ? 0.988 : 0.984;
+    this.rot += this.spin;
+  };
+
+  function TNTExplosionParticle(px, py, isSmoke) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = isSmoke ? 1.2 + Math.random() * 4.5 : 5 + Math.random() * 16;
+    this.x = px + (Math.random() - 0.5) * CELL * 4.5;
+    this.y = py + (Math.random() - 0.5) * CELL * 4.5;
+    this.vx = Math.cos(angle) * speed;
+    this.vy = Math.sin(angle) * speed - (isSmoke ? 1.2 : 0);
+    this.smoke = isSmoke;
+    if (isSmoke) {
+      const g = 95 + Math.random() * 55;
+      this.r = g;
+      this.g = g;
+      this.b = g + Math.random() * 20;
+    } else {
+      this.r = 255;
+      this.g = 30 + Math.random() * 140;
+      this.b = Math.random() * 40;
+    }
+    this.size = isSmoke ? 3 + Math.random() * 7 : 2.5 + Math.random() * 5;
+    this.rot = Math.random() * Math.PI * 2;
+  }
+
+  TNTExplosionParticle.prototype.update = function () {
+    this.x += this.vx;
+    this.y += this.vy;
+    if (this.smoke) {
+      this.vy -= 0.06;
+      this.vx += (Math.random() - 0.5) * 0.4;
+    } else {
+      this.vy += 0.11;
+    }
+    this.vx *= 0.987;
+  };
+
+  function spawnTNTExplosionParticles(centerC, centerR) {
+    const cx = centerC * CELL + CELL / 2;
+    const cy = centerR * CELL + CELL / 2;
+    const list = [];
+    let i;
+    for (i = 0; i < 55; i++) {
+      list.push(new TNTExplosionParticle(cx, cy, false));
+    }
+    for (i = 0; i < 45; i++) {
+      list.push(new TNTExplosionParticle(cx, cy, true));
+    }
+    return list;
+  }
+
+  function updateTNTExplosionParticles(particles) {
+    for (let i = 0; i < particles.length; i++) particles[i].update();
+  }
+
+  function drawTNTExplosionParticles(particles, elapsed) {
+    const fade = Math.max(0, 1 - elapsed / TNT_PARTICLE_MS);
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      ctx.save();
+      ctx.shadowBlur = p.smoke ? 6 * fade : 14 * fade;
+      ctx.shadowColor = p.smoke
+        ? "rgba(120,120,120," + fade * 0.6 + ")"
+        : "rgba(255,120,40," + fade + ")";
+      ctx.fillStyle =
+        "rgba(" + p.r + "," + p.g + "," + p.b + "," + fade + ")";
+      const s = p.size * (0.5 + 0.5 * fade);
+      if (p.smoke) {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, s, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillRect(-s / 2, -s / 2, s, s * 1.2);
+      }
+      ctx.restore();
+    }
+  }
+
+  function applyTNTExplosion(centerC, centerR) {
+    let cleared = 0;
+    for (let dr = -2; dr <= 2; dr++) {
+      for (let dc = -2; dc <= 2; dc++) {
+        const c = centerC + dc;
+        const r = centerR + dr;
+        if (c >= 0 && c < COLS && r >= 0 && r < ROWS) {
+          if (board[r][c] !== 0) cleared++;
+          board[r][c] = 0;
+        }
+      }
+    }
+    if (cleared > 0) {
+      score += cleared * 4 * level;
+      scoreEl.textContent = String(score);
+    }
+  }
+
+  function spawnParticlesForRows(rows) {
+    const list = [];
+    for (const r of rows) {
+      for (let c = 0; c < COLS; c++) {
+        const t = board[r][c];
+        if (!t) continue;
+        const color = COLORS[t];
+        const cx = c * CELL + CELL / 2;
+        const cy = r * CELL + CELL / 2;
+        for (let i = 0; i < PARTICLES_PER_CELL; i++) {
+          const px = cx + (Math.random() - 0.5) * (CELL - 2);
+          const py = cy + (Math.random() - 0.5) * (CELL - 2);
+          list.push(new Particle(px, py, color));
+        }
+        for (let j = 0; j < SPARKS_PER_CELL; j++) {
+          const px = cx + (Math.random() - 0.5) * (CELL - 2);
+          const py = cy + (Math.random() - 0.5) * (CELL - 2);
+          list.push(new Particle(px, py, null, { spark: true }));
+        }
+      }
+    }
+    return list;
+  }
+
+  function updateParticles(particles) {
+    for (let i = 0; i < particles.length; i++) particles[i].update();
+  }
+
+  function emptyBoard() {
+    board = [];
+    for (let r = 0; r < ROWS; r++) {
+      board[r] = [];
+      for (let c = 0; c < COLS; c++) board[r][c] = 0;
+    }
+  }
+
+  function randType() {
+    return 1 + Math.floor(Math.random() * 7);
+  }
+
+  function newPiece(type) {
+    const base = SHAPES[type - 1].map((row) => row.slice());
+    return { type, shape: base, x: Math.floor((COLS - base[0].length) / 2), y: 0 };
+  }
+
+  function collides(p, ox, oy, shape) {
+    const s = shape || p.shape;
+    for (let r = 0; r < s.length; r++) {
+      for (let c = 0; c < s[r].length; c++) {
+        if (!s[r][c]) continue;
+        const nx = p.x + c + ox;
+        const ny = p.y + r + oy;
+        if (nx < 0 || nx >= COLS || ny >= ROWS) return true;
+        if (ny >= 0 && board[ny][nx]) return true;
+      }
+    }
+    return false;
+  }
+
+  function mergePiece() {
+    const p = piece;
+    for (let r = 0; r < p.shape.length; r++) {
+      for (let c = 0; c < p.shape[r].length; c++) {
+        if (!p.shape[r][c]) continue;
+        const ny = p.y + r;
+        const nx = p.x + c;
+        if (ny >= 0) board[ny][nx] = p.type;
+      }
+    }
+  }
+
+  function finalizePieceLock(p) {
+    if (p.type === TYPE_TNT) {
+      piece = null;
+      const cx = p.x + 1;
+      const cy = p.y + 1;
+      applyTNTExplosion(cx, cy);
+      tntExplosionEffect = {
+        particles: spawnTNTExplosionParticles(cx, cy),
+        particlesT0: performance.now(),
+      };
+      playTNTExplosionSfx();
+    } else {
+      piece = p;
+      mergePiece();
+      piece = null;
+      if (tryBeginLineClearEffect()) {
+        playLineClearSfx();
+      } else {
+        playLandSfx();
+        bossOnLandEndOfLock();
+        if (!bossDefeatEffect) {
+          spawn();
+          lastDrop = performance.now();
+        }
+      }
+    }
+  }
+
+  function findFullRows() {
+    const rows = [];
+    for (let r = 0; r < ROWS; r++) {
+      if (board[r].every((cell) => cell !== 0)) rows.push(r);
+    }
+    return rows;
+  }
+
+  /** 指定行を盤から取り除き、スコア・レベルを更新する（エフェクト終了後に呼ぶ） */
+  function applyLineRemovalAndScore(rowsToRemove) {
+    const sorted = rowsToRemove.slice().sort((a, b) => b - a);
+    const cleared = sorted.length;
+    for (const r of sorted) {
+      board.splice(r, 1);
+      board.unshift(Array(COLS).fill(0));
+    }
+    if (cleared) {
+      if (bossActive) {
+        bossLinesProgress += cleared;
+        if (bossLinesProgress >= bossNorma) {
+          bossVictory();
+        }
+      }
+      linesTotal += cleared;
+      const table = [0, 100, 300, 500, 800];
+      score += (table[cleared] || 800) * level;
+      level = 1 + Math.floor(linesTotal / 10);
+      dropMs = Math.max(120, 800 - (level - 1) * 70);
+      scoreEl.textContent = String(score);
+      linesEl.textContent = String(linesTotal);
+      levelEl.textContent = String(level);
+    }
+  }
+
+  /** マージ直後にフルラインがあれば消去エフェクトを開始。なければ false */
+  function tryBeginLineClearEffect() {
+    const rows = findFullRows();
+    if (rows.length === 0) return false;
+    lineClearEffect = {
+      rows,
+      phase: "flash",
+      startedAt: performance.now(),
+      particles: [],
+      particlesT0: 0,
+    };
+    piece = null;
+    return true;
+  }
+
+  function updateLineClearEffect(now) {
+    const e = lineClearEffect;
+    if (!e) return;
+    if (e.phase === "flash") {
+      if (now - e.startedAt >= FLASH_MS) {
+        e.particles = spawnParticlesForRows(e.rows);
+        e.phase = "explode";
+        e.particlesT0 = now;
+      }
+    } else if (e.phase === "explode") {
+      updateParticles(e.particles);
+      if (now - e.particlesT0 >= PARTICLE_MS) {
+        applyLineRemovalAndScore(e.rows);
+        lineClearEffect = null;
+        bossOnLandEndOfLock();
+        if (!bossDefeatEffect) {
+          spawn();
+          lastDrop = performance.now();
+        }
+      }
+    }
+  }
+
+  function updateTNTExplosionEffect(now) {
+    const e = tntExplosionEffect;
+    if (!e) return;
+    updateTNTExplosionParticles(e.particles);
+    if (now - e.particlesT0 >= TNT_PARTICLE_MS) {
+      tntExplosionEffect = null;
+      if (tryBeginLineClearEffect()) {
+        playLineClearSfx();
+      } else {
+        bossOnLandEndOfLock();
+        if (!bossDefeatEffect) {
+          spawn();
+          lastDrop = performance.now();
+        }
+      }
+    }
+  }
+
+  function spawn() {
+    piece = newPiece(nextType);
+    nextType = randType();
+    if (collides(piece, 0, 0)) {
+      gameOver = true;
+      overlay.hidden = false;
+      cancelAnimationFrame(animId);
+    }
+  }
+
+  function tryRotate() {
+    if (
+      !piece ||
+      gameOver ||
+      paused ||
+      lineClearEffect ||
+      tntExplosionEffect ||
+      bossDefeatEffect
+    )
+      return;
+    if (piece.type === TYPE_TNT) return;
+    const rotated = trimShape(rotateCW(piece.shape));
+    const kicks = [0, -1, 1, -2, 2];
+    for (const k of kicks) {
+      if (!collides({ ...piece, x: piece.x + k }, 0, 0, rotated)) {
+        piece.x += k;
+        piece.shape = rotated;
+        playRotateSfx();
+        return;
+      }
+    }
+  }
+
+  function tryMove(dx, dy) {
+    if (
+      !piece ||
+      gameOver ||
+      paused ||
+      lineClearEffect ||
+      tntExplosionEffect ||
+      bossDefeatEffect
+    )
+      return false;
+    if (!collides(piece, dx, dy)) {
+      piece.x += dx;
+      piece.y += dy;
+      return true;
+    }
+    return false;
+  }
+
+  function hardDrop() {
+    if (
+      !piece ||
+      gameOver ||
+      paused ||
+      lineClearEffect ||
+      tntExplosionEffect ||
+      bossDefeatEffect
+    )
+      return;
+    let n = 0;
+    const p = piece;
+    while (!collides(piece, 0, 1)) {
+      piece.y++;
+      n++;
+    }
+    score += n * 2;
+    scoreEl.textContent = String(score);
+    finalizePieceLock(p);
+  }
+
+  function tickDrop(now) {
+    if (
+      !piece ||
+      gameOver ||
+      paused ||
+      lineClearEffect ||
+      tntExplosionEffect ||
+      bossDefeatEffect
+    )
+      return;
+    const mult = keys["ArrowDown"] ? 6 : 1;
+    const interval = dropMs / mult;
+    if (now - lastDrop >= interval) {
+      if (!tryMove(0, 1)) {
+        const p = piece;
+        finalizePieceLock(p);
+      }
+      lastDrop = now;
+    }
+  }
+
+  function drawCell(x, y, color, ghost) {
+    const px = x * CELL;
+    const py = y * CELL;
+    ctx.fillStyle = ghost ? "rgba(255,255,255,0.12)" : color;
+    ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+    if (!ghost) {
+      ctx.strokeStyle = "rgba(255,255,255,0.35)";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 1.5, py + 1.5, CELL - 3, CELL - 3);
+    }
+  }
+
+  function drawTNTPiece(p, ghost) {
+    const w = p.shape[0].length;
+    const h = p.shape.length;
+    const px = p.x * CELL;
+    const py = p.y * CELL;
+    const bw = w * CELL - 2;
+    const bh = h * CELL - 2;
+    ctx.save();
+    ctx.fillStyle = ghost ? "rgba(198,40,40,0.3)" : "#c62828";
+    ctx.fillRect(px + 1, py + 1, bw, bh);
+    ctx.strokeStyle = ghost ? "rgba(255,255,255,0.25)" : "#5d0f0f";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(px + 1.5, py + 1.5, bw - 1, bh - 1);
+    ctx.fillStyle = ghost ? "rgba(255,255,255,0.4)" : "#ffffff";
+    ctx.font = "bold 22px system-ui, 'Segoe UI', sans-serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.shadowColor = "rgba(0,0,0,0.65)";
+    ctx.shadowBlur = 5;
+    ctx.fillText("TNT", px + (w * CELL) / 2, py + (h * CELL) / 2);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  function drawFlashCell(c, r, now, startedAt) {
+    const t = now - startedAt;
+    const pulse = 0.5 + 0.5 * Math.sin((t / FLASH_MS) * Math.PI * 2 * 5);
+    const px = c * CELL;
+    const py = r * CELL;
+    const cx = px + CELL / 2;
+    const cy = py + CELL / 2;
+    const g = ctx.createRadialGradient(cx, cy, 2, cx, cy, CELL * 0.65);
+    g.addColorStop(0, "rgb(255,255,255)");
+    g.addColorStop(0.45, `rgb(255, ${230 + Math.floor(25 * pulse)}, ${160 + Math.floor(40 * pulse)})`);
+    g.addColorStop(1, `rgb(255, ${180 + Math.floor(40 * pulse)}, 120)`);
+    ctx.fillStyle = g;
+    ctx.fillRect(px + 1, py + 1, CELL - 2, CELL - 2);
+    ctx.strokeStyle = `rgba(255, 255, 255, ${0.5 + 0.45 * pulse})`;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 8 + 6 * pulse;
+    ctx.shadowColor = "rgba(255, 255, 255, 0.85)";
+    ctx.strokeRect(px + 1.5, py + 1.5, CELL - 3, CELL - 3);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawShockLinesFlash(now, startedAt, rows) {
+    const t = now - startedAt;
+    const pulse = 0.5 + 0.5 * Math.sin((t / FLASH_MS) * Math.PI * 2 * 6);
+    const w = COLS * CELL;
+    for (let i = 0; i < rows.length; i++) {
+      const r = rows[i];
+      const cy = r * CELL + CELL / 2;
+      ctx.save();
+      ctx.strokeStyle = `rgba(255, 248, 200, ${0.4 + 0.45 * pulse})`;
+      ctx.lineWidth = 5 + 4 * pulse;
+      ctx.shadowBlur = 24 + 18 * pulse;
+      ctx.shadowColor = "rgba(255, 255, 255, 0.95)";
+      ctx.beginPath();
+      ctx.moveTo(0, cy);
+      ctx.lineTo(w, cy);
+      ctx.stroke();
+      ctx.strokeStyle = `rgba(120, 200, 255, ${0.35 * pulse})`;
+      ctx.lineWidth = 2;
+      ctx.shadowBlur = 12;
+      ctx.shadowColor = "rgba(150, 220, 255, 0.8)";
+      ctx.beginPath();
+      ctx.moveTo(0, cy);
+      ctx.lineTo(w, cy);
+      ctx.stroke();
+      ctx.restore();
+    }
+    const cx = w / 2;
+    const ch = ROWS * CELL;
+    const cy0 = ch / 2;
+    const radGrad = ctx.createRadialGradient(cx, cy0, 0, cx, cy0, ch * 0.75);
+    radGrad.addColorStop(0, `rgba(255, 255, 255, ${0.1 + 0.12 * pulse})`);
+    radGrad.addColorStop(0.4, `rgba(255, 220, 120, ${0.06 * pulse})`);
+    radGrad.addColorStop(1, "rgba(0, 0, 0, 0)");
+    ctx.fillStyle = radGrad;
+    ctx.fillRect(0, 0, w, ch);
+  }
+
+  function drawExplodeBloom(now, particlesT0) {
+    const ex = now - particlesT0;
+    const boom = Math.min(1, ex / 100);
+    const fadeOut = Math.max(0, 1 - ex / 280);
+    const a = 0.22 * boom * fadeOut;
+    if (a < 0.01) return;
+    const w = COLS * CELL;
+    const h = ROWS * CELL;
+    ctx.save();
+    ctx.strokeStyle = `rgba(255, 255, 255, ${a})`;
+    ctx.lineWidth = 3;
+    ctx.shadowBlur = 16;
+    ctx.shadowColor = `rgba(255, 255, 255, ${a})`;
+    ctx.strokeRect(2, 2, w - 4, h - 4);
+    ctx.restore();
+  }
+
+  function drawNextPreview() {
+    const w = nextCanvas.width;
+    const h = nextCanvas.height;
+    nextCtx.fillStyle = "#0d1117";
+    nextCtx.fillRect(0, 0, w, h);
+    nextCtx.strokeStyle = "#30363d";
+    nextCtx.lineWidth = 2;
+    nextCtx.strokeRect(1, 1, w - 2, h - 2);
+
+    const shape = SHAPES[nextType - 1];
+    let minR = 99,
+      maxR = -1,
+      minC = 99,
+      maxC = -1;
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (shape[r][c]) {
+          minR = Math.min(minR, r);
+          maxR = Math.max(maxR, r);
+          minC = Math.min(minC, c);
+          maxC = Math.max(maxC, c);
+        }
+      }
+    }
+    if (maxR < 0) return;
+    const bw = maxC - minC + 1;
+    const bh = maxR - minR + 1;
+    const maxDim = Math.max(bw, bh);
+    const cell = Math.min(28, Math.floor(82 / maxDim));
+    const gw = bw * cell;
+    const gh = bh * cell;
+    const ox = (w - gw) / 2;
+    const oy = (h - gh) / 2;
+    const color = COLORS[nextType];
+    for (let r = 0; r < shape.length; r++) {
+      for (let c = 0; c < shape[r].length; c++) {
+        if (!shape[r][c]) continue;
+        const dr = r - minR;
+        const dc = c - minC;
+        const px = ox + dc * cell;
+        const py = oy + dr * cell;
+        nextCtx.fillStyle = color;
+        nextCtx.fillRect(px + 1, py + 1, cell - 2, cell - 2);
+        nextCtx.strokeStyle = "rgba(255,255,255,0.35)";
+        nextCtx.lineWidth = 1;
+        nextCtx.strokeRect(px + 1.5, py + 1.5, cell - 3, cell - 3);
+      }
+    }
+  }
+
+  function drawParticles(particles, explodeElapsed) {
+    const fade = Math.max(0, 1 - explodeElapsed / PARTICLE_MS);
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      ctx.save();
+      if (p.kind === "spark") {
+        ctx.shadowBlur = 12 * fade;
+        ctx.shadowColor = "rgba(255, 255, 255, " + fade + ")";
+        ctx.fillStyle =
+          "rgba(" + p.r + "," + p.g + "," + p.b + "," + fade + ")";
+        const s = p.size * (0.45 + 0.55 * fade);
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, s, 0, Math.PI * 2);
+        ctx.fill();
+      } else {
+        ctx.shadowBlur = 8 * fade;
+        ctx.shadowColor =
+          "rgba(" + p.r + "," + p.g + "," + p.b + "," + fade * 0.85 + ")";
+        ctx.fillStyle =
+          "rgba(" + p.r + "," + p.g + "," + p.b + "," + fade + ")";
+        const s = p.size * (0.5 + 0.5 * fade);
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillRect(-s / 2, -s / 2, s, s);
+      }
+      ctx.restore();
+    }
+  }
+
+  function draw(now) {
+    if (bossActive) {
+      drawBossArenaBackground();
+    } else {
+      ctx.fillStyle = "#0d1117";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+    let explodeElapsed = 0;
+    if (lineClearEffect && lineClearEffect.phase === "explode") {
+      explodeElapsed = now - lineClearEffect.particlesT0;
+    }
+    const clearingSet =
+      lineClearEffect && lineClearEffect.phase === "explode"
+        ? new Set(lineClearEffect.rows)
+        : null;
+    const flashRows =
+      lineClearEffect && lineClearEffect.phase === "flash"
+        ? new Set(lineClearEffect.rows)
+        : null;
+
+    for (let r = 0; r < ROWS; r++) {
+      for (let c = 0; c < COLS; c++) {
+        const t = board[r][c];
+        if (!t) continue;
+        if (clearingSet && clearingSet.has(r)) continue;
+        if (flashRows && flashRows.has(r)) {
+          drawFlashCell(c, r, now, lineClearEffect.startedAt);
+        } else {
+          drawCell(c, r, COLORS[t], false);
+        }
+      }
+    }
+    if (lineClearEffect && lineClearEffect.phase === "flash") {
+      drawShockLinesFlash(now, lineClearEffect.startedAt, lineClearEffect.rows);
+    }
+    if (lineClearEffect && lineClearEffect.phase === "explode") {
+      drawExplodeBloom(now, lineClearEffect.particlesT0);
+      drawParticles(lineClearEffect.particles, explodeElapsed);
+    }
+    if (tntExplosionEffect) {
+      const tntElapse = now - tntExplosionEffect.particlesT0;
+      drawTNTExplosionParticles(tntExplosionEffect.particles, tntElapse);
+    }
+    if (
+      piece &&
+      !gameOver &&
+      !lineClearEffect &&
+      !tntExplosionEffect &&
+      !bossDefeatEffect
+    ) {
+      if (piece.type === TYPE_TNT) {
+        let gy = piece.y;
+        while (!collides({ ...piece, y: gy + 1 }, 0, 0)) gy++;
+        drawTNTPiece({ ...piece, y: gy }, true);
+        drawTNTPiece(piece, false);
+      } else {
+        let gy = piece.y;
+        while (!collides({ ...piece, y: gy + 1 }, 0, 0)) gy++;
+        for (let r = 0; r < piece.shape.length; r++) {
+          for (let c = 0; c < piece.shape[r].length; c++) {
+            if (!piece.shape[r][c]) continue;
+            const cx = piece.x + c;
+            const ry = gy + r;
+            if (ry >= 0) drawCell(cx, ry, COLORS[piece.type], true);
+          }
+        }
+        for (let r = 0; r < piece.shape.length; r++) {
+          for (let c = 0; c < piece.shape[r].length; c++) {
+            if (!piece.shape[r][c]) continue;
+            const cx = piece.x + c;
+            const ry = piece.y + r;
+            if (ry >= 0) drawCell(cx, ry, COLORS[piece.type], false);
+          }
+        }
+      }
+    }
+    ctx.strokeStyle = "#30363d";
+    ctx.lineWidth = 2;
+    ctx.strokeRect(0, 0, COLS * CELL, ROWS * CELL);
+
+    if (bossDefeatEffect) {
+      const bel = now - bossDefeatEffect.particlesT0;
+      drawBossDefeatParticles(bossDefeatEffect.particles, bel);
+    }
+
+    drawBossHUD();
+
+    drawPauseOverlay();
+
+    drawNextPreview();
+  }
+
+  function loop(now) {
+    if (!gameOver && !paused) {
+      if (lastLoopTime === 0) lastLoopTime = now;
+      const dt = Math.min(now - lastLoopTime, 100);
+      lastLoopTime = now;
+      if (!bossActive && !bossDefeatEffect) {
+        bossSpawnAccumMs += dt;
+        while (
+          bossSpawnAccumMs >= BOSS_SPAWN_INTERVAL_MS &&
+          !bossActive
+        ) {
+          bossSpawnAccumMs -= BOSS_SPAWN_INTERVAL_MS;
+          trySpawnBoss();
+        }
+      }
+      updateBossDefeatEffect(now);
+      if (!bossDefeatEffect) {
+        updateTNTExplosionEffect(now);
+        if (!tntExplosionEffect) {
+          updateLineClearEffect(now);
+          if (!lineClearEffect) tickDrop(now);
+        }
+      }
+    } else if (paused) {
+      lastLoopTime = now;
+    }
+    draw(now);
+    animId = requestAnimationFrame(loop);
+  }
+
+  function reset() {
+    emptyBoard();
+    score = 0;
+    linesTotal = 0;
+    level = 1;
+    dropMs = 800;
+    scoreEl.textContent = "0";
+    linesEl.textContent = "0";
+    levelEl.textContent = "1";
+    iSummonUsesLeft = I_SUMMON_MAX;
+    updateISummonUI();
+    tntUsesLeft = TNT_MAX;
+    updateTNTUI();
+    gameOver = false;
+    paused = false;
+    pauseBtn.textContent = "一時停止";
+    lineClearEffect = null;
+    tntExplosionEffect = null;
+    bossActive = false;
+    bossDefeatEffect = null;
+    bossSpawnAccumMs = 0;
+    lastLoopTime = 0;
+    overlay.hidden = true;
+    nextType = randType();
+    spawn();
+    lastDrop = performance.now();
+    if (animId) cancelAnimationFrame(animId);
+    animId = requestAnimationFrame(loop);
+  }
+
+  document.addEventListener("keydown", (e) => {
+    const isPauseKey = e.key === "p" || e.key === "P";
+    if (isPauseKey) {
+      unlockAudioFromUserGesture();
+      e.preventDefault();
+      if (!gameOver) togglePause();
+      return;
+    }
+    const gameKeys = ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", " "];
+    const isBombKey = e.key === "x" || e.key === "X";
+    const isTNTKey = e.key === "t" || e.key === "T";
+    if (gameKeys.includes(e.key) || isBombKey || isTNTKey) {
+      unlockAudioFromUserGesture();
+    }
+    if (gameKeys.includes(e.key) || isBombKey || isTNTKey) {
+      e.preventDefault();
+    }
+    keys[e.key] = true;
+    if (gameOver && e.key === " ") {
+      reset();
+      unlockAudioFromUserGesture();
+      return;
+    }
+    if (paused) return;
+    if (gameOver || lineClearEffect || tntExplosionEffect || bossDefeatEffect)
+      return;
+    if (isTNTKey) {
+      tryTNTSummon();
+      return;
+    }
+    if (isBombKey) {
+      tryISummon();
+      return;
+    }
+    if (e.key === "ArrowLeft") tryMove(-1, 0);
+    else if (e.key === "ArrowRight") tryMove(1, 0);
+    else if (e.key === "ArrowUp") tryRotate();
+    else if (e.key === " ") hardDrop();
+  });
+
+  pauseBtn.addEventListener("click", function () {
+    unlockAudioFromUserGesture();
+    if (!gameOver) togglePause();
+  });
+
+  document.addEventListener(
+    "click",
+    function () {
+      unlockAudioFromUserGesture();
+    },
+    true
+  );
+
+  document.addEventListener("keyup", (e) => {
+    keys[e.key] = false;
+  });
+
+  function touchInputBlocked() {
+    return (
+      gameOver ||
+      lineClearEffect ||
+      tntExplosionEffect ||
+      bossDefeatEffect
+    );
+  }
+
+  function bindPointerRepeat(el, moveFn) {
+    let rep = null;
+    function tick() {
+      unlockAudioFromUserGesture();
+      if (paused || touchInputBlocked()) return;
+      moveFn();
+    }
+    function start(e) {
+      e.preventDefault();
+      try {
+        el.setPointerCapture(e.pointerId);
+      } catch (err) {
+        /* 無視 */
+      }
+      tick();
+      rep = setInterval(tick, 135);
+    }
+    function stop() {
+      if (rep) {
+        clearInterval(rep);
+        rep = null;
+      }
+    }
+    el.addEventListener("pointerdown", start);
+    el.addEventListener("pointerup", stop);
+    el.addEventListener("pointercancel", stop);
+    el.addEventListener("lostpointercapture", stop);
+  }
+
+  bindPointerRepeat(touchLeft, function () {
+    tryMove(-1, 0);
+  });
+  bindPointerRepeat(touchRight, function () {
+    tryMove(1, 0);
+  });
+
+  touchDown.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    unlockAudioFromUserGesture();
+    keys["ArrowDown"] = true;
+    try {
+      touchDown.setPointerCapture(e.pointerId);
+    } catch (err) {
+      /* 無視 */
+    }
+  });
+  touchDown.addEventListener("pointerup", function () {
+    keys["ArrowDown"] = false;
+  });
+  touchDown.addEventListener("pointercancel", function () {
+    keys["ArrowDown"] = false;
+  });
+  touchDown.addEventListener("lostpointercapture", function () {
+    keys["ArrowDown"] = false;
+  });
+
+  touchRotate.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    unlockAudioFromUserGesture();
+    if (paused) return;
+    if (touchInputBlocked()) return;
+    tryRotate();
+  });
+
+  touchHardDrop.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    unlockAudioFromUserGesture();
+    if (paused) return;
+    if (touchInputBlocked()) return;
+    hardDrop();
+  });
+
+  touchISummon.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    unlockAudioFromUserGesture();
+    if (paused) return;
+    if (touchInputBlocked()) return;
+    tryISummon();
+  });
+
+  touchTNT.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    unlockAudioFromUserGesture();
+    if (paused) return;
+    if (touchInputBlocked()) return;
+    tryTNTSummon();
+  });
+
+  touchPause.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    unlockAudioFromUserGesture();
+    if (!gameOver) togglePause();
+  });
+
+  overlay.addEventListener("click", function (e) {
+    if (!gameOver) return;
+    e.preventDefault();
+    unlockAudioFromUserGesture();
+    reset();
+  });
+
+  if ("serviceWorker" in navigator) {
+    var host = location.hostname;
+    if (
+      location.protocol === "https:" ||
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host === "[::1]"
+    ) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js").catch(function () {});
+      });
+    }
+  }
+
+  reset();
+})();
+  </script>
+</body>
+</html>
