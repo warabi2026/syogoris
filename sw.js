@@ -1,5 +1,5 @@
 /* テトリス PWA — オフライン起動用の最小キャッシュ */
-const CACHE_NAME = "tetris-pwa-v2";
+const CACHE_NAME = "tetris-pwa-v3";
 const PRECACHE_URLS = ["./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", function (e) {
