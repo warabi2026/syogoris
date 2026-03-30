@@ -1106,6 +1106,7 @@
     if (gameOver || bossDefeatEffect) return;
     paused = !paused;
     pauseBtn.textContent = paused ? "再開" : "一時停止";
+    touchPause.textContent = paused ? "▶ 再開" : "⏸ 停止";
     if (paused) {
       keys["ArrowDown"] = false;
       keys["ArrowLeft"] = false;
@@ -1895,6 +1896,7 @@
     gameOver = false;
     paused = false;
     pauseBtn.textContent = "一時停止";
+    touchPause.textContent = "⏸ 停止";
     lineClearEffect = null;
     tntExplosionEffect = null;
     bossActive = false;
