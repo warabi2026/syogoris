@@ -15,7 +15,7 @@
     * { box-sizing: border-box; }
     body {
       margin: 0;
-      min-height: 100vh;
+      min-height: 100dvh;
       display: flex;
       flex-direction: column;
       align-items: center;
@@ -211,9 +211,12 @@
       }
       #game {
         display: block;
-        width: min(100vw - 16px, 320px);
+        max-width: min(100vw - 16px, 320px);
+        max-height: calc(100dvh - 280px);
+        aspect-ratio: 1 / 2;
+        width: auto;
         height: auto;
-        max-width: 100%;
+        margin: 0 auto;
       }
       .next-preview-wrap {
         position: absolute;
