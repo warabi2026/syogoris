@@ -44,8 +44,6 @@
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 0 0 2px #30363d;
     }
     .side {
-      position: relative;
-      z-index: 1;
       min-width: 160px;
       padding: 1rem;
       background: rgba(13, 17, 23, 0.85);
@@ -61,8 +59,7 @@
     .item-line strong { color: #3fb950; }
     .item-line.tnt strong { color: #f85149; }
     .next-preview-wrap {
-      position: absolute;
-      z-index: 2;
+      position: static;
     }
     .next-label {
       margin: 0.75rem 0 0.4rem;
@@ -201,6 +198,7 @@
         font-size: 1.35rem;
       }
       .panel {
+        position: relative;
         flex-direction: column;
         align-items: stretch;
         width: 100%;
@@ -218,10 +216,19 @@
         max-width: 100%;
       }
       .next-preview-wrap {
+        position: absolute;
+        z-index: 2;
         top: 8px;
-        right: 8px;
+        right: calc((100% - min(100vw - 16px, 320px)) / 2 + 8px);
         left: auto;
         width: 64px;
+      }
+      #overlay.over {
+        z-index: 10;
+      }
+      .panel:has(#overlay:not([hidden])) .next-preview-wrap {
+        visibility: hidden;
+        pointer-events: none;
       }
       .next-preview-wrap .next-label {
         display: none;
@@ -233,6 +240,7 @@
         box-shadow: inset 0 0 0 1px rgba(48, 54, 61, 0.85);
       }
       .side {
+        position: static;
         width: 100%;
         max-width: min(100vw - 16px, 380px);
         margin: 0 auto;
@@ -244,12 +252,6 @@
       .mobile-only { display: block; }
     }
     @media (min-width: 769px) {
-      .next-preview-wrap {
-        left: calc(100% + 1.5rem);
-        right: auto;
-        top: 11rem;
-        width: 128px;
-      }
       .touch-controls {
         display: none !important;
       }
@@ -261,10 +263,6 @@
   <div class="panel">
     <div class="wrap">
       <canvas id="game" width="320" height="640" aria-label="テトリス"></canvas>
-      <div class="next-preview-wrap">
-        <p class="next-label">次のブロック</p>
-        <canvas id="nextPreview" width="128" height="128" aria-hidden="true"></canvas>
-      </div>
       <div id="overlay" class="over" hidden>
         <span class="desktop-only">ゲームオーバー — スペースで再開</span>
         <span class="mobile-only">ゲームオーバー — タップで再開</span>
@@ -300,6 +298,10 @@
       <p class="item-line">Iミノ召喚: <strong id="iSummonCount">残り5回</strong></p>
       <p class="item-line tnt">TNT: <strong id="tntCount">残り3回</strong></p>
       <button type="button" id="pauseBtn" class="btn-pause">一時停止</button>
+      <div class="next-preview-wrap">
+        <p class="next-label">次のブロック</p>
+        <canvas id="nextPreview" width="128" height="128" aria-hidden="true"></canvas>
+      </div>
       <div class="controls">
         <span class="desktop-only">
           ← → 移動<br />
