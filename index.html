@@ -1402,6 +1402,8 @@
     const cleared = sorted.length;
     for (const r of sorted) {
       board.splice(r, 1);
+    }
+    for (let i = 0; i < cleared; i++) {
       board.unshift(Array(COLS).fill(0));
     }
     if (cleared) {
