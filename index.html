@@ -106,6 +106,69 @@
       line-height: 1.6;
       color: #8b949e;
     }
+    .ranking-panel {
+      margin-top: 1rem;
+      padding: 0.75rem 0.65rem;
+      background: rgba(22, 27, 34, 0.9);
+      border-radius: 8px;
+      border: 1px solid #30363d;
+    }
+    .ranking-title {
+      margin: 0 0 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      text-align: center;
+      color: #d29922;
+      letter-spacing: 0.06em;
+    }
+    .ranking-list {
+      margin: 0;
+      padding: 0;
+      list-style: none;
+      font-size: 0.78rem;
+      line-height: 1.45;
+      color: #e6edf3;
+    }
+    .ranking-list li {
+      display: grid;
+      grid-template-columns: 1.75rem 1fr auto;
+      gap: 0.35rem 0.5rem;
+      align-items: baseline;
+      padding: 0.28rem 0.4rem;
+      margin-bottom: 0.2rem;
+      border-radius: 6px;
+      background: rgba(13, 17, 23, 0.85);
+      border: 1px solid rgba(48, 54, 61, 0.85);
+    }
+    .ranking-list li:last-child {
+      margin-bottom: 0;
+    }
+    .ranking-list .rank-num {
+      font-weight: 700;
+      color: #58a6ff;
+      text-align: right;
+    }
+    .ranking-list .rank-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #c9d1d9;
+    }
+    .ranking-list .rank-score {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      color: #3fb950;
+      text-align: right;
+    }
+    .ranking-list .ranking-empty {
+      display: block;
+      padding: 0.35rem 0;
+      text-align: center;
+      color: #6e7681;
+      font-size: 0.75rem;
+      border: none;
+      background: none;
+    }
     .over {
       position: absolute;
       inset: 0;
@@ -318,6 +381,10 @@
           P または「停止」で一時停止
         </span>
       </div>
+      <div id="rankingPanel" class="ranking-panel">
+        <h3 class="ranking-title">👑 ランキング 👑</h3>
+        <ol id="rankingList" class="ranking-list" aria-live="polite"></ol>
+      </div>
     </div>
   </div>
   <footer>
@@ -355,6 +422,7 @@
   const TNT_MAX = 3;
   let iSummonUsesLeft = I_SUMMON_MAX;
   let tntUsesLeft = TNT_MAX;
+  let nextTntRewardScore = 20000;
 
   const COLORS = [
     null,
@@ -457,6 +525,114 @@
   let paused = false;
   let animId = null;
   let keys = {};
+
+  const RANKING_STORAGE_KEY = "syogoris_tetris_ranking";
+
+  /** 同名は最高スコア1件にまとめる（旧データの重複対策） */
+  function mergeEntriesByName(entries) {
+    const map = Object.create(null);
+    for (let i = 0; i < entries.length; i++) {
+      const e = entries[i];
+      if (!e || typeof e.name !== "string" || typeof e.score !== "number")
+        continue;
+      const n = e.name;
+      if (!map[n] || map[n].score < e.score) {
+        map[n] = { name: n, score: e.score };
+      }
+    }
+    return Object.keys(map).map(function (k) {
+      return map[k];
+    });
+  }
+
+  function loadRanking() {
+    try {
+      if (!window.localStorage) return [];
+      const raw = window.localStorage.getItem(RANKING_STORAGE_KEY);
+      if (!raw) return [];
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr)) return [];
+      const filtered = arr.filter(function (x) {
+        return (
+          x &&
+          typeof x.name === "string" &&
+          typeof x.score === "number"
+        );
+      });
+      return mergeEntriesByName(filtered);
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function saveRanking(entries) {
+    try {
+      if (!window.localStorage) return;
+      window.localStorage.setItem(
+        RANKING_STORAGE_KEY,
+        JSON.stringify(entries)
+      );
+    } catch (e) {}
+  }
+
+  function renderRanking() {
+    const listEl = document.getElementById("rankingList");
+    if (!listEl) return;
+    while (listEl.firstChild) {
+      listEl.removeChild(listEl.firstChild);
+    }
+    const top = loadRanking().slice(0, 5);
+    if (top.length === 0) {
+      const li = document.createElement("li");
+      li.className = "ranking-empty";
+      li.textContent = "まだ記録がありません";
+      listEl.appendChild(li);
+      return;
+    }
+    for (let i = 0; i < top.length; i++) {
+      const row = top[i];
+      const li = document.createElement("li");
+      const rankSpan = document.createElement("span");
+      rankSpan.className = "rank-num";
+      rankSpan.textContent = String(i + 1);
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "rank-name";
+      nameSpan.textContent = row.name;
+      const scoreSpan = document.createElement("span");
+      scoreSpan.className = "rank-score";
+      scoreSpan.textContent = String(row.score);
+      li.appendChild(rankSpan);
+      li.appendChild(nameSpan);
+      li.appendChild(scoreSpan);
+      listEl.appendChild(li);
+    }
+  }
+
+  function recordGameOverScore() {
+    const raw = window.prompt(
+      "ゲームオーバー！あなたの名前を入力してください："
+    );
+    const name =
+      raw !== null && String(raw).trim() !== ""
+        ? String(raw).trim()
+        : "名無し";
+    const entries = loadRanking();
+    const idx = entries.findIndex(function (e) {
+      return e.name === name;
+    });
+    if (idx !== -1) {
+      if (score > entries[idx].score) {
+        entries[idx].score = score;
+      }
+    } else {
+      entries.push({ name: name, score: score });
+    }
+    entries.sort(function (a, b) {
+      return b.score - a.score;
+    });
+    saveRanking(entries);
+    renderRanking();
+  }
 
   /** ボス戦（60秒ごと・ノルマ1〜5ライン・20ターン制限） */
   let bossActive = false;
@@ -672,6 +848,7 @@
       gameOver = true;
       overlay.hidden = false;
       cancelAnimationFrame(animId);
+      recordGameOverScore();
     }
   }
 
@@ -944,6 +1121,54 @@
     touchTNT.textContent = "TNT(" + tntUsesLeft + ")";
   }
 
+  /** スコア2万点ごとのTNTボーナス獲得をチェック */
+  function checkTntScoreBonus() {
+    while (score >= nextTntRewardScore) {
+      tntUsesLeft++;
+      updateTNTUI();
+      nextTntRewardScore += 20000;
+      playTntBonusSfx();
+    }
+  }
+
+  /** 1-UP風：短い高音のチャリーン（スコア報酬） */
+  function playTntBonusSfx() {
+    runWhenAudioReady(function () {
+      const ac = audioCtx;
+      const t0 = ac.currentTime;
+      const master = ac.createGain();
+      master.gain.value = 0.22;
+      master.connect(ac.destination);
+      const notes = [1046.5, 1318.51, 1567.98, 2093.0];
+      for (let i = 0; i < notes.length; i++) {
+        const osc = ac.createOscillator();
+        const g = ac.createGain();
+        osc.type = "sine";
+        osc.frequency.value = notes[i];
+        const st = t0 + i * 0.045;
+        g.gain.setValueAtTime(0, st);
+        g.gain.linearRampToValueAtTime(0.16 - i * 0.025, st + 0.006);
+        g.gain.exponentialRampToValueAtTime(0.001, st + 0.11);
+        osc.connect(g);
+        g.connect(master);
+        osc.start(st);
+        osc.stop(st + 0.12);
+      }
+      const bell = ac.createOscillator();
+      const gb = ac.createGain();
+      bell.type = "triangle";
+      bell.frequency.setValueAtTime(3520, t0 + 0.16);
+      bell.frequency.exponentialRampToValueAtTime(5280, t0 + 0.22);
+      gb.gain.setValueAtTime(0, t0 + 0.16);
+      gb.gain.linearRampToValueAtTime(0.1, t0 + 0.168);
+      gb.gain.exponentialRampToValueAtTime(0.001, t0 + 0.32);
+      bell.connect(gb);
+      gb.connect(master);
+      bell.start(t0 + 0.16);
+      bell.stop(t0 + 0.33);
+    });
+  }
+
   /** TNT点火：ヒュッと上がるノイズ風（帯域を持った鋸波） */
   function playTNTIgnitionSfx() {
     runWhenAudioReady(function () {
@@ -1151,6 +1376,10 @@
   /** @type {{ particles: object[], particlesT0: number } | null} */
   let tntExplosionEffect = null;
 
+  const TETRIS_MSG_MS = 1850;
+  /** @type {{ startedAt: number } | null} */
+  let tetrisMessageEffect = null;
+
   function hexToRgb(hex) {
     const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
     return m
@@ -1286,6 +1515,7 @@
     if (cleared > 0) {
       score += cleared * 4 * level;
       scoreEl.textContent = String(score);
+      checkTntScoreBonus();
     }
   }
 
@@ -1414,13 +1644,17 @@
         }
       }
       linesTotal += cleared;
-      const table = [0, 100, 300, 500, 800];
-      score += (table[cleared] || 800) * level;
+      const table = [0, 100, 300, 500, 10000];
+      score += (table[cleared] || 10000) * level;
       level = 1 + Math.floor(linesTotal / 10);
       dropMs = Math.max(120, 800 - (level - 1) * 70);
       scoreEl.textContent = String(score);
       linesEl.textContent = String(linesTotal);
       levelEl.textContent = String(level);
+      if (cleared === 4) {
+        tetrisMessageEffect = { startedAt: performance.now() };
+      }
+      checkTntScoreBonus();
     }
   }
 
@@ -1487,6 +1721,7 @@
       gameOver = true;
       overlay.hidden = false;
       cancelAnimationFrame(animId);
+      recordGameOverScore();
     }
   }
 
@@ -1549,6 +1784,7 @@
     }
     score += n * 2;
     scoreEl.textContent = String(score);
+    checkTntScoreBonus();
     finalizePieceLock(p);
   }
 
@@ -1850,9 +2086,62 @@
 
     drawBossHUD();
 
+    drawTetrisMessageEffect(now);
+
     drawPauseOverlay();
 
     drawNextPreview();
+  }
+
+  function drawTetrisMessageEffect(now) {
+    const e = tetrisMessageEffect;
+    if (!e) return;
+    const elapsed = now - e.startedAt;
+    if (elapsed >= TETRIS_MSG_MS) {
+      tetrisMessageEffect = null;
+      return;
+    }
+    const t = elapsed / TETRIS_MSG_MS;
+    const w = COLS * CELL;
+    const h = ROWS * CELL;
+    const cx = w / 2;
+    const floatUp = 52 * t * t;
+    const cy = h / 2 - floatUp;
+    const alpha = Math.max(0, 1 - Math.pow(t, 1.65));
+
+    ctx.save();
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.globalAlpha = alpha;
+    const fontSize = 52;
+    ctx.font =
+      "bold " + fontSize + "px system-ui, 'Segoe UI', 'Hiragino Sans', sans-serif";
+
+    const grad = ctx.createLinearGradient(cx - 160, cy, cx + 160, cy);
+    grad.addColorStop(0, "#ff2d6a");
+    grad.addColorStop(0.17, "#ffcc00");
+    grad.addColorStop(0.35, "#66ff66");
+    grad.addColorStop(0.52, "#00e5ff");
+    grad.addColorStop(0.7, "#a855f7");
+    grad.addColorStop(0.85, "#ff6ec7");
+    grad.addColorStop(1, "#fff59d");
+
+    ctx.shadowBlur = 22 * alpha;
+    ctx.shadowColor = "rgba(255, 255, 255, " + (0.75 * alpha) + ")";
+    ctx.shadowOffsetX = 0;
+    ctx.shadowOffsetY = 0;
+
+    ctx.strokeStyle = "rgba(0, 0, 0, " + (0.55 * alpha) + ")";
+    ctx.lineWidth = 5;
+    ctx.lineJoin = "round";
+    ctx.strokeText("TETRIS!", cx, cy);
+
+    ctx.fillStyle = grad;
+    ctx.fillText("TETRIS!", cx, cy);
+
+    ctx.shadowBlur = 0;
+    ctx.globalAlpha = 1;
+    ctx.restore();
   }
 
   function loop(now) {
@@ -1888,6 +2177,7 @@
   function reset() {
     emptyBoard();
     score = 0;
+    nextTntRewardScore = 20000;
     linesTotal = 0;
     level = 1;
     dropMs = 800;
@@ -1904,6 +2194,7 @@
     touchPause.textContent = "⏸ 停止";
     lineClearEffect = null;
     tntExplosionEffect = null;
+    tetrisMessageEffect = null;
     bossActive = false;
     bossDefeatEffect = null;
     bossSpawnAccumMs = 0;
@@ -2097,6 +2388,7 @@
     }
   }
 
+  renderRanking();
   reset();
 })();
   </script>
