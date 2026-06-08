@@ -1401,14 +1401,21 @@
       piece = newPiece(nextType);   // ネクストが現在のミノになる
       nextType = randType();        // 新しいネクストをランダム生成
     } else {
-      // ストックあり: ストックのミノを現在に、落ちていたミノをネクストへ、ストックは空に
+      // ストックあり: 仕様書通りの順番で処理
       // TNTミノはネクスト（nextType）に送れないためスキップ
       if (currentType === TYPE_TNT) return;
-      const typeFromHold = holdType;  // ストックから取り出すミノ
-      holdType = null;                 // ストックを空っぽに
-      nextType = currentType;          // 落ちていたミノをネクストへ上書き
+
+      const typeFromHold = holdType;  // ① 取り出すミノを退避
+
+      // ② ストックのミノを新しい現在のブロックに（位置は画面上部にリセット）
+      piece = newPieceFromHold(typeFromHold);
+
+      // ③ 落ちていたミノをネクストへ上書き
+      nextType = currentType;
+
+      // ④ ストックを確実に空にする（他の変数のデータは絶対にコピーしない）
+      holdType = null;
       holdUsed = true;
-      piece = newPieceFromHold(typeFromHold);  // ストックのミノが新たな現在に
     }
 
     if (collides(piece, 0, 0)) {
@@ -2073,6 +2080,7 @@
   function drawHoldPreview() {
     const w = holdCanvas.width;
     const h = holdCanvas.height;
+    holdCtx.clearRect(0, 0, w, h);   // キャンバスを完全消去（holdType=nullのとき空表示を保証）
     holdCtx.fillStyle = "#0d1117";
     holdCtx.fillRect(0, 0, w, h);
     holdCtx.strokeStyle = "#30363d";
