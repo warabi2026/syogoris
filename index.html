@@ -1401,9 +1401,12 @@
       piece = newPiece(nextType);   // ネクストが現在のミノになる
       nextType = randType();        // 新しいネクストをランダム生成
     } else {
-      // 2回目以降: 現在のミノ ↔ ストックを入れ替えるだけ（nextType は絶対に触らない）
+      // ストックあり: ストックのミノを現在に、落ちていたミノをネクストへ、ストックは空に
+      // TNTミノはネクスト（nextType）に送れないためスキップ
+      if (currentType === TYPE_TNT) return;
       const typeFromHold = holdType;  // ストックから取り出すミノ
-      holdType = currentType;          // 現在のミノをストックへ
+      holdType = null;                 // ストックを空っぽに
+      nextType = currentType;          // 落ちていたミノをネクストへ上書き
       holdUsed = true;
       piece = newPieceFromHold(typeFromHold);  // ストックのミノが新たな現在に
     }
