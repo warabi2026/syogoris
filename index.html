@@ -1391,34 +1391,31 @@
       bossDefeatEffect ||
       holdUsed
     ) return;
+
     const currentType = piece.type;
+
     if (holdType === null) {
+      // 初回ホールド: 現在のミノをストック → ネクストを現在に昇格 → 新ネクストを生成
       holdType = currentType;
       holdUsed = true;
-      piece = newPiece(nextType);
-      nextType = randType();
-      if (collides(piece, 0, 0)) {
-        gameOver = true;
-        overlay.hidden = false;
-        cancelAnimationFrame(animId);
-        recordGameOverScore();
-        return;
-      }
-      lastDrop = performance.now();
+      piece = newPiece(nextType);   // ネクストが現在のミノになる
+      nextType = randType();        // 新しいネクストをランダム生成
     } else {
-      const prevHold = holdType;
-      holdType = currentType;
+      // 2回目以降: 現在のミノ ↔ ストックを入れ替えるだけ（nextType は絶対に触らない）
+      const typeFromHold = holdType;  // ストックから取り出すミノ
+      holdType = currentType;          // 現在のミノをストックへ
       holdUsed = true;
-      piece = newPieceFromHold(prevHold);
-      if (collides(piece, 0, 0)) {
-        gameOver = true;
-        overlay.hidden = false;
-        cancelAnimationFrame(animId);
-        recordGameOverScore();
-        return;
-      }
-      lastDrop = performance.now();
+      piece = newPieceFromHold(typeFromHold);  // ストックのミノが新たな現在に
     }
+
+    if (collides(piece, 0, 0)) {
+      gameOver = true;
+      overlay.hidden = false;
+      cancelAnimationFrame(animId);
+      recordGameOverScore();
+      return;
+    }
+    lastDrop = performance.now();
   }
 
   function togglePause() {
